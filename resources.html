@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Resources – Disaster Relief Mapping</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">⛑ ReliefMap</div>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="resources.html">Resources</a>
+    <a href="report.html">Report</a>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <h1>Find Relief Resources</h1>
+  <p>Type any city in India — resources will appear instantly</p>
+</div>
+
+<div class="search-box">
+  <input type="text" id="cityInput" placeholder="Type any city — Agra, Varanasi, Surat, Patna..."/>
+  <button class="btn-primary" id="searchBtn" onclick="searchResources()">Search</button>
+</div>
+
+<div class="filters">
+  <button class="active" data-filter="all" onclick="filterCards(this)">All</button>
+  <button data-filter="food" onclick="filterCards(this)">🍛 Food</button>
+  <button data-filter="medical" onclick="filterCards(this)">🏥 Medical</button>
+  <button data-filter="shelter" onclick="filterCards(this)">🏠 Shelter</button>
+  <button data-filter="volunteer" onclick="filterCards(this)">🤝 Volunteers</button>
+</div>
+
+<div class="location-header" id="locationHeader">
+  <span id="locationBadge"></span>
+</div>
+
+<div class="loader" id="loader">
+  <div class="spinner"></div>
+  <p>Finding resources...</p>
+</div>
+
+<div id="results">
+  <div class="empty-state">
+    <div class="icon">🗺️</div>
+    <p>Type a city above and press Search</p>
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 <strong>ReliefMap</strong> — Disaster Relief Resource Mapping</p>
+  <p>Helping communities during emergencies across India</p>
+</footer>
+<script src="data.js"></script>
+<script src="script.js"></script>
+<script>
+ 
+
+  // =============================================
+
+  let allCards = [];
+  let currentFilter = 'all';
+
+  document.getElementById('cityInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchResources();
+  });
+
+  async function searchResources() {
+    const city = document.getElementById('cityInput').value.trim();
+    if (!city) { alert('Please enter a city name!'); return; }
+
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+    document.getElementById('loader').style.display = 'block';
+    document.getElementById('results').innerHTML = '';
+    document.getElementById('locationHeader').style.display = 'none';
+
+    try {
+      const prompt = `You are a disaster relief database for India. Generate realistic disaster relief resources for "${city}".
+Return ONLY a valid JSON array with exactly 6 objects. No markdown, no extra text.
+Each object must have:
+- name: realistic relief center name for ${city}
+- type: one of exactly: food, medical, shelter, volunteer
+- location: specific area in ${city}
+- contact: Indian mobile starting with +91
+- status: one of: Open, Limited, Full
+- capacity: e.g. "300 meals/day" or "150 people"
+- available: what is available there
+Return only the JSON array.`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        }
+      );
+
+      const data = await res.json();
+      let text = data.candidates[0].content.parts[0].text.trim();
+      text = text.replace(/```json|```/g, '').trim();
+      const resources = JSON.parse(text);
+      allCards = resources;
+      renderCards(resources, city);
+
+    } catch (err) {
+      document.getElementById('results').innerHTML =
+        '<div class="empty-state"><div class="icon">⚠️</div><p>Could not load resources. Check your API key or internet connection.</p></div>';
+    }
+
+    document.getElementById('loader').style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = 'Search';
+  }
+
+  function renderCards(resources, city) {
+    const container = document.getElementById('results');
+    container.innerHTML = '';
+
+    const filtered = currentFilter === 'all'
+      ? resources
+      : resources.filter(r => r.type === currentFilter);
+
+    if (!filtered.length) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No resources found for this filter.</p></div>';
+      return;
+    }
+
+    document.getElementById('locationBadge').textContent = '📍 Resources for: ' + city.charAt(0).toUpperCase() + city.slice(1);
+    document.getElementById('locationHeader').style.display = 'block';
+
+    filtered.forEach((r, i) => {
+      const emoji = r.type==='food'?'🍛':r.type==='medical'?'🏥':r.type==='shelter'?'🏠':'🤝';
+      const statusClass = r.status==='Open'?'status-open':r.status==='Limited'?'status-limited':'status-full';
+      const card = document.createElement('div');
+      card.className = 'ai-card';
+      card.style.animationDelay = (i * 0.07) + 's';
+      card.dataset.type = r.type;
+      card.innerHTML = `
+        <span class="card-badge badge-${r.type}">${emoji} ${r.type}</span>
+        <h3>${r.name}</h3>
+        <p>📍 <span>${r.location}</span></p>
+        <p>✅ <span>${r.available}</span></p>
+        <p>👥 Capacity: <span>${r.capacity}</span></p>
+        <p>📞 <span>${r.contact}</span></p>
+        <p>Status: <span class="${statusClass}">${r.status}</span></p>`;
+      container.appendChild(card);
+    });
+  }
+
+  function filterCards(btn) {
+    document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    if (allCards.length > 0) renderCards(allCards, document.getElementById('cityInput').value.trim());
+  }
+</script>
+</body>
+</html>

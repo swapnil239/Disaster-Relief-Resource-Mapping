@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Report a Resource – Disaster Relief Mapping</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<header>
+  <h1>⛑ Disaster Relief Mapping</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="resources.html">Resources</a>
+    <a href="report.html">Report</a>
+  </nav>
+</header>
+
+<div class="report-wrapper">
+
+  <div class="report-header">
+    <h1>Report a Resource</h1>
+    <p>Know of a shelter, food camp, or medical aid nearby? Add it to help others find it.</p>
+  </div>
+
+  <div class="report-form">
+
+    <div class="form-group">
+      <label>Resource Name</label>
+      <input type="text" id="resName" placeholder="e.g. Gandhi Park Relief Camp"/>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Resource Type</label>
+        <select id="resType">
+          <option value="">Select Type</option>
+          <option value="food">🍛 Food</option>
+          <option value="medical">🏥 Medical</option>
+          <option value="shelter">🏠 Shelter</option>
+          <option value="volunteer">🤝 Volunteers</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="resStatus">
+          <option value="Open">Open</option>
+          <option value="Limited">Limited</option>
+          <option value="Full">Full</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Location / Address</label>
+      <input type="text" id="resLocation" placeholder="e.g. Civil Lines, Lucknow"/>
+    </div>
+
+    <div class="form-group">
+      <label>Contact Number</label>
+      <input type="text" id="resContact" placeholder="+91 XXXXX XXXXX"/>
+    </div>
+
+    <div class="form-group">
+      <label>What is Available?</label>
+      <textarea id="resAvailable" placeholder="e.g. Rice, Dal, Water, Blankets, First Aid..."></textarea>
+    </div>
+
+    <button class="submit-btn" onclick="submitReport()">Submit Resource →</button>
+
+    <p id="statusMsg" style="text-align:center; margin-top:14px; font-size:0.9rem; color:green; display:none;"></p>
+  </div>
+
+  <!-- Submitted cards show here -->
+  <div id="submitted-list"></div>
+
+</div>
+
+<footer>
+  <p>© 2026 Disaster Relief Mapping Resources</p>
+  <p>Helping communities during emergencies</p>
+</footer>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, orderBy, query }
+    from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAUm_YCFwVa4RkRcCzFaz8P45JX5YG3QIw",
+    authDomain: "disaster-relief-mapping.firebaseapp.com",
+    projectId: "disaster-relief-mapping",
+    storageBucket: "disaster-relief-mapping.firebasestorage.app",
+    messagingSenderId: "944065288354",
+    appId: "1:944065288354:web:a9f5fb4e5daaf69bae9ffb"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // ── Load existing reports from Firebase on page load ──
+  async function loadReports() {
+    try {
+      const q = query(collection(db, "reports"), orderBy("timestamp", "desc"));
+      const snapshot = await getDocs(q);
+      snapshot.forEach(doc => {
+        renderCard(doc.data());
+      });
+    } catch (err) {
+      console.log("Load error:", err);
+    }
+  }
+
+  // ── Submit form to Firebase ──
+  window.submitReport = async function () {
+    const name      = document.getElementById('resName').value.trim();
+    const type      = document.getElementById('resType').value;
+    const status    = document.getElementById('resStatus').value;
+    const location  = document.getElementById('resLocation').value.trim();
+    const contact   = document.getElementById('resContact').value.trim();
+    const available = document.getElementById('resAvailable').value.trim();
+
+    if (!name || !type || !location || !contact || !available) {
+      alert('⚠️ Please fill all fields before submitting!');
+      return;
+    }
+
+    const btn = document.querySelector('.submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      await addDoc(collection(db, "reports"), {
+        name, type, status, location, contact, available,
+        timestamp: new Date().toISOString()
+      });
+
+      // Show success message
+      const msg = document.getElementById('statusMsg');
+      msg.textContent = '✅ Resource saved to database successfully!';
+      msg.style.display = 'block';
+      setTimeout(() => msg.style.display = 'none', 3000);
+
+      // Show card on page
+      renderCard({ name, type, status, location, contact, available });
+
+      // Clear form
+      document.getElementById('resName').value = '';
+      document.getElementById('resType').value = '';
+      document.getElementById('resLocation').value = '';
+      document.getElementById('resContact').value = '';
+      document.getElementById('resAvailable').value = '';
+
+    } catch (err) {
+      alert('❌ Error saving. Check internet connection.');
+      console.error(err);
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Submit Resource →';
+  };
+
+  // ── Render a card on the page ──
+  function renderCard(r) {
+    const emoji = r.type==='food'?'🍛':r.type==='medical'?'🏥':r.type==='shelter'?'🏠':'🤝';
+    const statusClass = r.status==='Open'?'status-open':r.status==='Limited'?'status-limited':'status-full';
+
+    const card = document.createElement('div');
+    card.className = 'submitted-card';
+    card.innerHTML = `
+      <h3>${emoji} ${r.name}</h3>
+      <p>📍 <span>${r.location}</span></p>
+      <p>✅ <span>${r.available}</span></p>
+      <p>📞 <span>${r.contact}</span></p>
+      <p>Status: <span class="${statusClass}">${r.status}</span></p>
+      <span class="pending-tag">⏳ Pending Verification</span>`;
+
+    document.getElementById('submitted-list').prepend(card);
+  }
+
+  // Load reports when page opens
+  loadReports();
+
+</script>
+</body>
+</html>
