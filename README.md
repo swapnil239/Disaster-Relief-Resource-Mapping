@@ -8,22 +8,6 @@ A web-based application to help citizens, volunteers, and relief coordinators **
 
 ---
 
-## 📸 Screenshots
-
-### 🏠 Home Page
-![Home Page](screenshots/home.jpg)
-> Emergency contacts, stats, live alerts — everything on one page
-
-### 🔍 Resources Page  
-![Resources Page](screenshots/resources.jpg)
-> Search "Agra" → Agra ke resources instantly appear with filters
-
-### 📋 Report Page
-![Report Page](screenshots/report.jpg)
-> Submit a resource → saved to Firebase cloud database in real-time
-
----
-
 ## 💡 Problem It Solves
 
 During disasters like floods and earthquakes, the biggest challenge is **not the shortage of resources — it's that nobody knows where they are.**
